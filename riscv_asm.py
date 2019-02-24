@@ -169,15 +169,17 @@ def i_type(org, block, group, errors, (rd, rs1, imm)):
     assert 0 <= rs1 < 32
     imm = resolve(org + len(block), imm)
     check(errors, -2048 <= imm < 2048, "imm field (i_type) {}", imm)
-    return (rd << 7) | (rs1 << 15) | (imm << 20)
+    imm_11_0 = (imm << 20) & 0xFFF00000
+    return imm_11_0 | (rd << 7) | (rs1 << 15)
 
 def s_type(org, block, group, errors, (rs1, rs2, imm)):
     assert 0 <= rs1 < 32
     assert 0 <= rs2 < 32
     imm = resolve(org + len(block), imm)
     check(errors, -2048 <= imm < 2048, "imm field (s_type) {}", imm)
-    low = (imm & 31)
-    return (low << 7) | (rs1 << 15) | (rs2 << 20) | ((imm >> 5) << 25)
+    imm_11_5 = (imm << 20) & 0x7FF00000
+    imm_4_0  = (imm <<  7) & 0x00000F80
+    return imm_11_5 | imm_4_0 | (rs1 << 15) | (rs2 << 20)
 
 def b_type(org, block, group, errors, (rs1, rs2, imm)):
     assert 0 <= rs1 < 32
@@ -185,26 +187,28 @@ def b_type(org, block, group, errors, (rs1, rs2, imm)):
     imm = resolve(org + len(block), imm) - (org + len(block))
     check(errors, -4096 <= imm < 4096, "imm field (b_type) {}", imm)
     assert imm & 1 == 0
-    low = (imm & 31) | ((imm >> 11) & 1)
-    high = (imm >> 5) & 63
-    sign = ((imm >> 12) & 1)
-    return (low << 7) | (rs1 << 15) | (rs2 << 20) | (high << 25) | (sign << 31)
+    imm_12   = (imm << 19) & 0x80000000
+    imm_10_5 = (imm << 15) & 0x7F000000
+    imm_4_1  = (imm <<  7) & 0x00000F00
+    imm_11   = (imm >>  4) & 0x00000080
+    return imm_12 | imm_10_5 | imm_4_1 | imm_11 | (rs1 << 15) | (rs2 << 20)
 
 def u_type(org, block, group, errors, (rd, imm)):
     assert 0 <= rd < 32
     imm = resolve(org + len(block), imm)
-    assert (imm >> 12) << 12 == imm
-    return (rd | imm) << 7
+    assert imm & 0xFFF == 0
+    return imm | (rd << 7)
 
 def j_type(org, block, group, errors, (rd, imm)):
     assert 0 <= rd < 32
     imm = resolve(org + len(block), imm) - (org + len(block))
     check(errors, -1048576 <= imm < 1048576, "imm field (j_type) {}", imm)
     assert imm & 1 == 0
-    sign = ((imm >> 20) & 1)
-    high = imm & 2047 | ((imm >> 11) & 1)
-    low  = (imm >> 12) & 255
-    return (rd << 7) | (high << 25) | (sign << 31)
+    imm_20    = (imm << 11) & 0x80000000
+    imm_10_1  = (imm << 20) & 0x7FE00000
+    imm_11    = (imm <<  9) & 0x00100000
+    imm_19_12 =  imm        & 0x000FF000
+    return imm_20 | imm_10_1 | imm_11 | imm_19_12 | (rd << 7)
 
 def calc_hi(value):
     if value > 0 and value & 2048 != 0:
