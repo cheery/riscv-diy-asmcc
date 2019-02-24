@@ -85,14 +85,14 @@ def check(errors, condition, fmt, *info):
 
 def enc_bytes(org, block, group, errors, args):
     for a in args:
-        a = resolve(org, a)
+        a = resolve(org + len(block), a)
         check(errors, 0 <= a <= 0xFF, "bytes {}", hex(a))
         block.append(chr(a))
     return True
 
 def enc_halfs(org, block, group, errors, args):
     for a in args:
-        a = resolve(org, a)
+        a = resolve(org + len(block), a)
         check(errors, 0 <= a <= 0xFFFF, "halfs {}", hex(a))
         block.append(chr((a >> 0) & 255))
         block.append(chr((a >> 8) & 255))
@@ -100,7 +100,7 @@ def enc_halfs(org, block, group, errors, args):
 
 def enc_words(org, block, group, errors, args):
     for a in args:
-        a = resolve(org, a)
+        a = resolve(org + len(block), a)
         check(errors, 0 <= a <= 0xFFFFFFFF, "words {}", hex(a))
         block.append(chr((a >>  0) & 255))
         block.append(chr((a >>  8) & 255))
@@ -110,7 +110,7 @@ def enc_words(org, block, group, errors, args):
 
 def enc_quads(org, block, group, errors, args):
     for a in args:
-        a = resolve(org, a)
+        a = resolve(org + len(block), a)
         check(errors, 0 <= a <= 0xFFFFFFFFFFFFFFFF, "quads {}", hex(a))
         block.append(chr((a >>  0) & 255))
         block.append(chr((a >>  8) & 255))
@@ -127,8 +127,8 @@ def enc_string(org, block, group, errors, string):
     return True
 
 def enc_check_size(org, block, group, errors, size):
-    real_sz = org + len(block) - resolve(org, group)
-    sz = resolve(org, size)
+    real_sz = org + len(block) - resolve(org + len(block), group)
+    sz = resolve(org + len(block), size)
     check(errors, real_sz == sz, "size mismatch {} != {}", real_sz, sz)
     return True
 
@@ -167,14 +167,14 @@ def fence_type(org, block, group, (prec, succ)):
 def i_type(org, block, group, errors, (rd, rs1, imm)):
     assert 0 <= rd < 32
     assert 0 <= rs1 < 32
-    imm = resolve(org, imm)
+    imm = resolve(org + len(block), imm)
     check(errors, -2048 <= imm < 2048, "imm field (i_type) {}", imm)
     return (rd << 7) | (rs1 << 15) | (imm << 20)
 
 def s_type(org, block, group, errors, (rs1, rs2, imm)):
     assert 0 <= rs1 < 32
     assert 0 <= rs2 < 32
-    imm = resolve(org, imm)
+    imm = resolve(org + len(block), imm)
     check(errors, -2048 <= imm < 2048, "imm field (s_type) {}", imm)
     low = (imm & 31)
     return (low << 7) | (rs1 << 15) | (rs2 << 20) | ((imm >> 5) << 25)
@@ -182,7 +182,7 @@ def s_type(org, block, group, errors, (rs1, rs2, imm)):
 def b_type(org, block, group, errors, (rs1, rs2, imm)):
     assert 0 <= rs1 < 32
     assert 0 <= rs2 < 32
-    imm = resolve(org, imm) - (org + len(block))
+    imm = resolve(org + len(block), imm) - (org + len(block))
     check(errors, -4096 <= imm < 4096, "imm field (b_type) {}", imm)
     assert imm & 1 == 0
     low = (imm & 31) | ((imm >> 11) & 1)
@@ -192,13 +192,13 @@ def b_type(org, block, group, errors, (rs1, rs2, imm)):
 
 def u_type(org, block, group, errors, (rd, imm)):
     assert 0 <= rd < 32
-    imm = resolve(org, imm)
+    imm = resolve(org + len(block), imm)
     assert (imm >> 12) << 12 == imm
     return (rd | imm) << 7
 
 def j_type(org, block, group, errors, (rd, imm)):
     assert 0 <= rd < 32
-    imm = resolve(org, imm) - (org + len(block))
+    imm = resolve(org + len(block), imm) - (org + len(block))
     check(errors, -1048576 <= imm < 1048576, "imm field (j_type) {}", imm)
     assert imm & 1 == 0
     sign = ((imm >> 20) & 1)
